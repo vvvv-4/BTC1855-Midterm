@@ -61,3 +61,38 @@ hist(wt.data$mean_wind_speed_mph)
 
 describe(wt.data)
 #This gives a good summary of the data 
+
+#2. Find number of cancelled trips and identify the indices.
+#Duration of trips are given in seconds 
+#To approach this questions, we are going to find the trip duration that are 
+#smaller than 3*60 secs (180sec), and those that start and end in the same station 
+
+cancelled <- which(trip.data$start_station_id == trip.data$end_station_id & trip.data$duration < 180)
+#Vector of indices for trips that start and ends at the same station while shorted than 3 min
+
+cancelled.id <- trip.data$id[c(cancelled)]
+#All the trip id removed to give trip.data1
+
+trip.data1 <- trip.data[-c(cancelled),]
+#this new dataset now have cancelled trips removed. 
+
+#3 Identify the outliers
+#lets find outliers in durations. identify those that are either very short or very long 
+#Outliers are defined based on its distances from the interquartile range
+#Anything beyond 1.5*IQR from the 1st and 3rd quantile is considered an outlier.
+
+quantile(trip.data1$duration)
+#1st Quantile is 342,  3rd quantile is 747
+
+IQR(trip.data1$duration)
+#IQR is found to be 405, 1.5*405 = 607.5
+
+out <- which(trip.data1$duration > 1.5*IQR(trip.data1$duration) + 747|trip.data1$duration < 342 - 1.5*IQR(trip.data1$duration))
+#These are the identified outliers for durations in trip data 
+
+out.id <- trip.data1$id[c(out)]
+#trip id of the outliers. 
+
+trip.data2 <- trip.data1[-c(out),]
+#This is the dataset with duration outliers removed 
+
