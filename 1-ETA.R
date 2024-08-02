@@ -96,3 +96,125 @@ out.id <- trip.data1$id[c(out)]
 trip.data2 <- trip.data1[-c(out),]
 #This is the dataset with duration outliers removed 
 
+#4 identify rushhours，frequent stations during those hours and for weekends 
+#Covert hours to posixs, make a new dataframe and leave trip.data2 alone
+
+library(dplyr)
+library(lubridate)
+
+#Convert both to POSIX form with lubridate functions
+start.d <- mdy_hm(trip.data2$start_date)
+ends.d <- mdy_hm(trip.data2$end_date)
+start.t <- as_hms(start.d)
+end.t <- as_hms(ends.d)
+start.date <- date(start.d)
+end.date <- date(ends.d)
+wod <- wday(start.date, label = TRUE)
+
+#Now lets put together everything 
+#Now we have date and time separated
+
+trip.data3 <- trip.data2%>%
+  mutate(start_date = start.date)%>%
+  mutate(end_date = end.date)%>%
+  mutate(start_time = start.t)%>%
+  mutate(end_time = end.t)%>%
+  mutate(DoW = wod)
+
+#First we subset for only observations on weekdays, DoW doesn't equal to Sat or Sun
+trip.data.3.1 <- subset(trip.data3, DoW != "Sun"& DoW !="Sat")
+
+#To identify Rush hours, make a histogram for end time and start time, keep it to the hours
+#So that we can use hist() 
+
+s.hours <- as.numeric(strftime(trip.data.3.1$start_time, "%H"))
+#Start Hours
+e.hours <- as.numeric(strftime(trip.data.3.1$end_time, "%H"))
+#end Hours 
+h1 <- hist(s.hours, breaks = c(0:24))
+
+h2 <- hist(e.hours, breaks = c(0:24))
+
+plot( h1, col=rgb(0,0,1,1/4), xlim=c(0,24), xlab = 
+        "Hours of the Day", main = "Frequency of start vs. end times of Rides in a day")  # first histogram
+plot( h2, col=rgb(1,0,0,1/4), xlim=c(0,24), add=T, )
+
+legend("topright", c("Start", "End"), fill= c('lightblue', 'pink'))
+
+#From this overlaid histogram I would consider the rush hours being from 6 to 8 in the morning
+#In the afternoon Rush hours would be from 15 to 17.
+#Now we would like to find the most frequent starting and ending station during rush hours,
+#Given that we are only working with weekdays 
+
+trip.data.3.2 <- subset(trip.data.3.1, (s.hours < 9 & s.hours > 5)|(s.hours < 18 & s.hours > 14))
+#trip.data.3.2, subset observations with starting time during rush hours
+
+table(trip.data.3.2$start_station_name) %>%
+  as.data.frame() %>% 
+  arrange(desc(Freq))
+
+#Top 10 busiest start stations during rush hours. 
+#1       San Francisco Caltrain (Townsend at 4th) 14072
+#2  Temporary Transbay Terminal (Howard at Beale)  7907
+#3        San Francisco Caltrain 2 (330 Townsend)  7185
+#4           Harry Bridges Plaza (Ferry Building)  6554
+#5                                2nd at Townsend  5807
+#6                              Steuart at Market  5624
+#7                                Townsend at 7th  5058
+#8                              Market at Sansome  4872
+#9                         Embarcadero at Sansome  4385
+#10                                Market at 10th  3870
+
+trip.data.3.3 <- subset(trip.data.3.1, (e.hours < 9 & e.hours > 5)|(e.hours < 18 & e.hours > 14))
+#trip.data.3.3 contains all obervations during rush hours. 
+
+#Top 10 busiest end stations during rush hours. 
+table(trip.data.3.3$end_station_name) %>%
+  as.data.frame() %>% 
+  arrange(desc(Freq))
+#1       San Francisco Caltrain (Townsend at 4th) 12843
+#2  Temporary Transbay Terminal (Howard at Beale)  7126
+#3        San Francisco Caltrain 2 (330 Townsend)  6493
+#4           Harry Bridges Plaza (Ferry Building)  5642
+#5                                2nd at Townsend  5381
+#6                              Steuart at Market  5063
+#7                                Townsend at 7th  4748
+#8                              Market at Sansome  4504
+#9                         Embarcadero at Sansome  4145
+#10                             2nd at South Park  3570
+
+#10 most frequent starting/ending station during weekdays.
+trip.data.3.4 <- subset(trip.data3, DoW == "Sun"| DoW =="Sat")
+#Observations during weekend in df trip.data.3.4
+
+table(trip.data.3.4$start_station_name) %>%
+  as.data.frame() %>% 
+  arrange(desc(Freq))
+#1                         Embarcadero at Sansome 2145
+#2           Harry Bridges Plaza (Ferry Building) 1924
+#3                                  Market at 4th 1266
+#4                                2nd at Townsend 1232
+#5                          Embarcadero at Bryant 1232
+#6                             Powell Street BART 1147
+#7       San Francisco Caltrain (Townsend at 4th) 1080
+#8                Grant Avenue at Columbus Avenue 1028
+#9                                 Market at 10th  877
+#10       San Francisco Caltrain 2 (330 Townsend)  871
+#top 10 most frequent starting station during weekends. 
+
+table(trip.data.3.4$end_station_name) %>%
+  as.data.frame() %>% 
+  arrange(desc(Freq))
+#1           Harry Bridges Plaza (Ferry Building) 2344
+#2                         Embarcadero at Sansome 1664
+#3                                  Market at 4th 1507
+#4                             Powell Street BART 1378
+#5       San Francisco Caltrain (Townsend at 4th) 1355
+#6                                2nd at Townsend 1269
+#7                          Embarcadero at Bryant 1125
+#8                              Steuart at Market  976
+#9                                Townsend at 7th  922
+#10                             Market at Sansome  914
+#Top 10 busiest end stations during the weekend. 
+
+#Utilization of Bikes/Month 
