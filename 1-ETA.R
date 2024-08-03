@@ -218,3 +218,88 @@ table(trip.data.3.4$end_station_name) %>%
 #Top 10 busiest end stations during the weekend. 
 
 #Utilization of Bikes/Month 
+#(total time used/total time in month).
+#Trip.data 3 have date and time separate, lets make a column with the month of the obersvation
+
+trip.data.3.5 <- trip.data3 %>%
+  mutate(month = month(trip.data3$start_date))%>%
+  group_by(month)%>%
+  summarize(sum = sum(duration)/length(unique(bike_id)))
+#Summed the total duration of bike use, trip.data.3.5 gives total duration of bikesa used grouped by months 
+
+
+trip.data.3.6 <- trip.data.3.5%>%
+  group_by(month)%>%
+  summarize(ratio = sum/(days_in_month(month)*24*60*60))
+#trip.data.3.6 gives the utilization ratio for months 
+
+barplot(trip.data.3.6$ratio, col = "pink")
+
+#Correlation between weather, visibility and bike rental. 
+#First inspect the weather data to see how it is stored. 
+#wt.entries are store in days, we have to coerce trip data by dates 
+#I would make a new df keeping duration as well as tallying # of trips / day 
+
+#I am going to group obervations based on date as well as starting city. 
+#To gain data on starting city, I would need data from station.csv.
+#First step would be to add a city column based on stating station in trip.data3
+
+station.dt <- read.csv("station.csv")
+id.city <- station.dt[, c(1,6)]
+
+colnames(id.city) <- c("start_station_id","city")
+
+trip.data4 <- merge(id.city, trip.data3, on = "start_station_id")
+#Now we added city based on start station using merge
+
+trip.data5 <- trip.data4[,c(2,4,5)]%>%#We only want duration, date and city for the purpose of correlation 
+  group_by(start_date, city)%>%
+  summarize(total.duration = sum(duration), num.trips = n())
+
+#Trip.data5 is ready to be joint with weather data!!! yeaaaaa
+#Before merging have to make sure than the keys have the same column names and format 
+
+colnames(trip.data5)[colnames(trip.data5) == "start_date"] <- "date"
+
+wt.data1 <- wt.data %>%
+  mutate(date = mdy(date))
+#Do this to change format of date in the original wt.dt so it its compatible with those in trip.data5
+
+merged.dt <- merge(trip.data5, wt.data1, on = c("city", "date"))
+####Yea our stuff merged perfectly!!! whoooooAAAAAA 
+
+merged.dt$precipitation_inches <- as.numeric(merged.dt$precipitation_inches)
+#Make this into some numeric value 
+merged.dt$events <- as.factor(merged.dt$events)
+#Make this into a factor 
+
+library(corrplot)
+
+compare <- c(merged.dt$total.duration, merged.dt$num.trips, merged.dt$max_temperature_f)
+
+M <- cor(merged.dt[,-c(1,2,16,17)], use = "complete.obs")
+corrplot(M, method = 'color')
+
+summary(merged.dt$events)
+#I still want to include where events in my plot, im going to make events into numeric codes!!!
+#Looking at it there should be only 4 levels however one obervation had "rain" instead of "Rain"
+#Find that value and substitute it 
+
+which(merged.dt$events == "rain")
+#row 271 
+merged.dt$events[271] <- "Rain"
+merged.dt$events <- factor(merged.dt$events, levels = c("","Fog","Fog-Rain", "Rain"))
+
+summary(merged.dt$events)
+#ok now we only have 4 levels, great!
+merged.dt$events <- as.numeric(factor(merged.dt$events, levels = c("","Fog","Fog-Rain", "Rain")))
+#Now put this into numeric form so we can actually use corplot on it.   
+
+M <- cor(merged.dt[,-c(1,2,17)], use = "complete.obs")
+corrplot(M, method = 'color')  
+
+
+
+
+
+
