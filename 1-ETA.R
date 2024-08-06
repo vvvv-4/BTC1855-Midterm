@@ -1,3 +1,12 @@
+########Plan of Action############
+#1. Do ETA for Weather and trip data by following steps given by "datasciencehero" 
+#2. Find outliers and cancelled rides, remove them from the dataset 
+#3. With the cleaned up dataset, find rush hours and the busiet stations 
+#4. Calculate utilization by grouping observations in months, 
+#5. Merged relevant trip data columns with weather data, then call on corrplot for correlation
+
+##################################
+
 #1. Run the ETA for trip and weather data for the dataset
 #Following codes and steps given by the "datasciencehero" 
 
@@ -22,22 +31,26 @@ glimpse(trip.data)
 #There are some zeros, 50 empty cells in the zipcode column. 
 print(status(trip.data))
 
+boxplot(trip.data$duration, main = "Boxplot for the Duration of Bike Rides in Bay Area", xlab = "Duration of Rides")
+
+mean(trip.data$duration)
+
+median(trip.data$duration)
+
+
 #We find San Francisco Caltrain is the most frequent start and end station. 
-#There are 74 station names but 70 station ids. This is weird and should be further investigated
 freq(trip.data$start_station_name) 
 freq(trip.data$end_station_name) 
 
 #Most users are suscribers
 freq(trip.data$subscription_type) 
 
-plot(freq(trip.data))
 print(profiling_num(trip.data))
 
 plot_num(trip.data)
 #This is not as meaningful as id, start station, end station, bike_id does not mean much 
 #Duration is what we could look as instead
 
-hist(trip.data$duration, col = 'skyblue3')
 #Histogram very stretched out on the x-axis, suggest some extreme values. 
 
 ##############Weather data################
@@ -53,16 +66,14 @@ print(status(wt.data))
 #Columns such as precipitation has many empty cells, 
 #it there are no rain, there would be recorded value. 
 
-hist(wt.data$mean_temperature_f) 
+plot_num(wt.data[, -c(14)])
 #Mean temperature is around 60 - 70 degrees farenheit per day
-
-hist(wt.data$mean_wind_speed_mph) 
 #Mean wind speed is usually between 5-10mph per 
 
 describe(wt.data)
 #This gives a good summary of the data 
 
-#2. Find number of cancelled trips and identify the indices.
+#2. Find number of cancelled trips and outlier remove them from dataset.
 #Duration of trips are given in seconds 
 #To approach this questions, we are going to find the trip duration that are 
 #smaller than 3*60 secs (180sec), and those that start and end in the same station 
@@ -96,19 +107,25 @@ out.id <- trip.data1$id[c(out)]
 trip.data2 <- trip.data1[-c(out),]
 #This is the dataset with duration outliers removed 
 
+boxplot(trip.data2$duration, main = "Boxplot for the Duration of Bike Rides in Bay Area (Removed)", xlab = "Duration of Rides")
+#Lets visualize everything again.
+
 #4 identify rushhours，frequent stations during those hours and for weekends 
-#Covert hours to posixs, make a new dataframe and leave trip.data2 alone
+#Convert hours to posixs, make a new dataframe and leave trip.data2 alone
 
 library(dplyr)
 library(lubridate)
+library(hms)
 
 #Convert both to POSIX form with lubridate functions
 start.d <- mdy_hm(trip.data2$start_date)
 ends.d <- mdy_hm(trip.data2$end_date)
 start.t <- as_hms(start.d)
 end.t <- as_hms(ends.d)
+#Start and end time
 start.date <- date(start.d)
 end.date <- date(ends.d)
+#Isolate date 
 wod <- wday(start.date, label = TRUE)
 
 #Now lets put together everything 
@@ -200,6 +217,7 @@ table(trip.data.3.4$start_station_name) %>%
 #8                Grant Avenue at Columbus Avenue 1028
 #9                                 Market at 10th  877
 #10       San Francisco Caltrain 2 (330 Townsend)  871
+
 #top 10 most frequent starting station during weekends. 
 
 table(trip.data.3.4$end_station_name) %>%
@@ -215,6 +233,7 @@ table(trip.data.3.4$end_station_name) %>%
 #8                              Steuart at Market  976
 #9                                Townsend at 7th  922
 #10                             Market at Sansome  914
+
 #Top 10 busiest end stations during the weekend. 
 
 #Utilization of Bikes/Month 
@@ -233,7 +252,7 @@ trip.data.3.6 <- trip.data.3.5%>%
   summarize(ratio = sum/(days_in_month(month)*24*60*60))
 #trip.data.3.6 gives the utilization ratio for months 
 
-barplot(trip.data.3.6$ratio, col = "pink")
+barplot(trip.data.3.6$ratio, col = "pink", main = "Utilization Ratio of Bikes by Month")
 
 #Correlation between weather, visibility and bike rental. 
 #First inspect the weather data to see how it is stored. 
@@ -296,10 +315,8 @@ merged.dt$events <- as.numeric(factor(merged.dt$events, levels = c("","Fog","Fog
 #Now put this into numeric form so we can actually use corplot on it.   
 
 M <- cor(merged.dt[,-c(1,2,17)], use = "complete.obs")
-corrplot(M, method = 'color')  
-
-
-
-
-
-
+colnames(M) <- c("Total.Duration", "#trips", "Max_temp", "Mean_temp", "Min_temp", "Max_vis", 
+                 "Mean_vis", "Min_vis", "Max_Windspeed", "Mean_Windspeed", "Max_gust", "Precipitation",
+                 "Cloud_Cover", "Events")
+rownames(M) <- colnames(M)
+corrplot(M, method = "color")
