@@ -20,6 +20,9 @@ library(Hmisc)
 #We'll start with trip data
 #To get started... 
 
+# SK Although technically possible, I advise against using periods
+# in variable/object names. Try using underscore instead. Reserve dot
+# notation for methods.
 trip.data <- read.csv("trip.csv")
 
 #To get a brief idea of what we are working with 
@@ -29,6 +32,8 @@ glimpse(trip.data)
 
 #From status, we can see that there are no NA in this dataset. 
 #There are some zeros, 50 empty cells in the zipcode column. 
+# SK (Points taken) The output of the code below shows 70 unique start/end station IDs, and 
+# 74 unique start/end station names. This is a discrepancy worth looking into.
 print(status(trip.data))
 
 boxplot(trip.data$duration, main = "Boxplot for the Duration of Bike Rides in Bay Area", xlab = "Duration of Rides")
@@ -130,7 +135,12 @@ wod <- wday(start.date, label = TRUE)
 
 #Now lets put together everything 
 #Now we have date and time separated
-
+# SK This approach of stripping out columns from a dataframe,
+# modifying them and then writing them back to the dataframe 
+# makes me nervous. You have to be 1000% sure that the order
+# of the dataframe and extracted vectors do not change at any time.
+# It would be a lot more safer if you made the above transformations
+# directly on the dataframe columns using mutate.
 trip.data3 <- trip.data2%>%
   mutate(start_date = start.date)%>%
   mutate(end_date = end.date)%>%
@@ -157,6 +167,8 @@ plot( h1, col=rgb(0,0,1,1/4), xlim=c(0,24), xlab =
 plot( h2, col=rgb(1,0,0,1/4), xlim=c(0,24), add=T, )
 
 legend("topright", c("Start", "End"), fill= c('lightblue', 'pink'))
+
+# SK Great idea to overlay trip start and end hours.
 
 #From this overlaid histogram I would consider the rush hours being from 6 to 8 in the morning
 #In the afternoon Rush hours would be from 15 to 17.
@@ -243,6 +255,8 @@ table(trip.data.3.4$end_station_name) %>%
 trip.data.3.5 <- trip.data3 %>%
   mutate(month = month(trip.data3$start_date))%>%
   group_by(month)%>%
+# SK (Points taken) Why is the denominator the length of the bike id? 
+# Bike id is an identifier and should not be used in any analysis.
   summarize(sum = sum(duration)/length(unique(bike_id)))
 #Summed the total duration of bike use, trip.data.3.5 gives total duration of bikesa used grouped by months 
 
@@ -287,6 +301,8 @@ wt.data1 <- wt.data %>%
 merged.dt <- merge(trip.data5, wt.data1, on = c("city", "date"))
 ####Yea our stuff merged perfectly!!! whoooooAAAAAA 
 
+# SK (Points taken) What happened to the 'T' values in precipitation column? 
+# Did you examine the EDA results of the weather dataset closely?
 merged.dt$precipitation_inches <- as.numeric(merged.dt$precipitation_inches)
 #Make this into some numeric value 
 merged.dt$events <- as.factor(merged.dt$events)
@@ -302,6 +318,8 @@ corrplot(M, method = 'color')
 summary(merged.dt$events)
 #I still want to include where events in my plot, im going to make events into numeric codes!!!
 #Looking at it there should be only 4 levels however one obervation had "rain" instead of "Rain"
+# SK This is why we do EDA. If you study the results closely, you would be able to identify 
+# issues like this early on.
 #Find that value and substitute it 
 
 which(merged.dt$events == "rain")
@@ -311,6 +329,7 @@ merged.dt$events <- factor(merged.dt$events, levels = c("","Fog","Fog-Rain", "Ra
 
 summary(merged.dt$events)
 #ok now we only have 4 levels, great!
+# SK I wonder where the 'Rain-Thunderstorm' event went?
 merged.dt$events <- as.numeric(factor(merged.dt$events, levels = c("","Fog","Fog-Rain", "Rain")))
 #Now put this into numeric form so we can actually use corplot on it.   
 
